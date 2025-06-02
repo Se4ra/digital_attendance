@@ -1,0 +1,41 @@
+plugins {
+    id 'com.android.application'
+    id 'kotlin-android'
+    id 'com.google.gms.google-services' // Firebase plugin
+}
+
+android {
+    namespace 'com.example.digital_attendance_system' // Change to your actual package name
+    compileSdk = flutter.compileSdkVersion
+
+    defaultConfig {
+        applicationId = "com.example.digital_attendance_system" // Replace with your app ID
+
+        minSdk = flutter.minSdkVersion
+        targetSdk = flutter.targetSdkVersion
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
+
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_1_8
+    }
+}
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.10"
+    implementation 'com.google.android.gms:play-services-location:21.0.1' // For geolocator
+}

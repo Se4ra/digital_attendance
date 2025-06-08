@@ -159,20 +159,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF79A0C9),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    ),
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Back', style: TextStyle(fontSize: 18, color: Colors.white)),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
                 TextButton(
                   onPressed: () {
                     Navigator.push(

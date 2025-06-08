@@ -64,7 +64,6 @@ class _EnterPinCheckInScreenState extends State<EnterPinCheckInScreen> {
         return;
       }
 
-      // 🚫 Prevent double check-in
       final existingCheckIn = await FirebaseFirestore.instance
           .collection('checkins')
           .where('sessionId', isEqualTo: sessionId)
@@ -77,7 +76,6 @@ class _EnterPinCheckInScreenState extends State<EnterPinCheckInScreen> {
         return;
       }
 
-      // ✅ Perform check-in
       await FirebaseFirestore.instance.collection('checkins').add({
         'sessionId': sessionId,
         'courseId': sessionData['courseId'],
@@ -95,7 +93,6 @@ class _EnterPinCheckInScreenState extends State<EnterPinCheckInScreen> {
         }
       });
 
-      // 🔄 Update session with list of checked in students
       await FirebaseFirestore.instance
           .collection('sessions')
           .doc(sessionId)

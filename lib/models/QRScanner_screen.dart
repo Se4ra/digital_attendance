@@ -109,7 +109,6 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
         },
       });
 
-      // Update session
       await FirebaseFirestore.instance
           .collection('sessions')
           .doc(sessionId)

@@ -46,9 +46,14 @@ class _LecturerAttendanceHistoryScreenState extends State<LecturerAttendanceHist
 
       final List<AttendanceRecord> fetchedHistory = snapshot.docs.map((doc) {
         final data = doc.data();
+        final sessionDate = data['sessionDate'];
+        final parsedDate = sessionDate is Timestamp
+            ? sessionDate.toDate()
+            : DateTime.tryParse(sessionDate ?? '') ?? DateTime.now();
+
         return AttendanceRecord(
           id: doc.id,
-          date: DateTime.parse(data['sessionDate']),
+          date: parsedDate,
           courseId: data['courseId'],
           courseName: data['courseName'],
           studentName: data['studentName'],
@@ -59,6 +64,7 @@ class _LecturerAttendanceHistoryScreenState extends State<LecturerAttendanceHist
           longitude: data['location']?['longitude'] ?? 0,
         );
       }).toList();
+
 
       final uniqueCourses = {
         for (var r in fetchedHistory) r.courseId: r.courseName

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:math'; // For generating the PIN
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:intl/intl.dart';
@@ -24,6 +25,7 @@ class QrGeneratorScreen extends StatelessWidget {
   String _generatePinCode() {
     final random = Random();
     return (100000 + random.nextInt(900000)).toString(); // 6-digit PIN
+
   }
 
   @override
@@ -32,6 +34,7 @@ class QrGeneratorScreen extends StatelessWidget {
     final String pinCode = _generatePinCode(); // 🔐 Generate PIN
 
     // 🧾 QR payload includes PIN
+
     final Map<String, dynamic> qrPayload = {
       'courseId': courseId,
       'courseName': courseName,
@@ -41,6 +44,16 @@ class QrGeneratorScreen extends StatelessWidget {
       'pin': pinCode, // 🔐 Include pin
       'location': location,
     };
+
+    FirebaseFirestore.instance.collection('sessions').add({
+      ...qrPayload,
+      'pinCode': pinCode, // 🔥 must match what student enters
+      'sessionDate': date,
+      'sessionTime': sessionTime,
+      'checkedInStudents': [],
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+
 
     final String qrData = jsonEncode(qrPayload);
 

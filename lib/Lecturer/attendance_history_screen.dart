@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';  // <-- Add this import
 import 'package:digital_attendance_system/utils/date_range_picker.dart';
 import 'package:digital_attendance_system/utils/loading_indicator.dart';
 import 'attendance_record.dart';
@@ -12,10 +13,12 @@ class LecturerAttendanceHistoryScreen extends StatefulWidget {
   const LecturerAttendanceHistoryScreen({super.key, this.initialCourseId});
 
   @override
-  State<LecturerAttendanceHistoryScreen> createState() => _LecturerAttendanceHistoryScreenState();
+  State<LecturerAttendanceHistoryScreen> createState() =>
+      _LecturerAttendanceHistoryScreenState();
 }
 
-class _LecturerAttendanceHistoryScreenState extends State<LecturerAttendanceHistoryScreen> {
+class _LecturerAttendanceHistoryScreenState
+    extends State<LecturerAttendanceHistoryScreen> {
   late List<AttendanceRecord> _fullHistory = [];
   late List<AttendanceRecord> _filteredHistory = [];
   late List<Map<String, String>> _coursesForFilter = [];
@@ -32,8 +35,52 @@ class _LecturerAttendanceHistoryScreenState extends State<LecturerAttendanceHist
   @override
   void initState() {
     super.initState();
-    _selectedCourseId = widget.initialCourseId?.toLowerCase() ?? 'all';
-    _fetchAttendanceHistory();
+    // Initialize filters from saved preferences, then fetch history
+    _loadFiltersFromPrefs().then((_) {
+      _fetchAttendanceHistory();
+    });
+  }
+
+  Future<void> _loadFiltersFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedCourseId = prefs.getString('selectedCourseId') ?? widget.initialCourseId?.toLowerCase() ?? 'all';
+    final savedStartDate = prefs.getString('selectedStartDate');
+    final savedEndDate = prefs.getString('selectedEndDate');
+
+    DateTimeRange? savedRange;
+    if (savedStartDate != null && savedEndDate != null) {
+      try {
+        final start = DateTime.parse(savedStartDate);
+        final end = DateTime.parse(savedEndDate);
+        savedRange = DateTimeRange(start: start, end: end);
+      } catch (_) {
+        savedRange = null;
+      }
+    }
+
+    setState(() {
+      _selectedCourseId = savedCourseId;
+      _selectedDateRange = savedRange;
+    });
+  }
+
+  Future<void> _saveFiltersToPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('selectedCourseId', _selectedCourseId ?? 'all');
+    if (_selectedDateRange != null) {
+      await prefs.setString('selectedStartDate', _selectedDateRange!.start.toIso8601String());
+      await prefs.setString('selectedEndDate', _selectedDateRange!.end.toIso8601String());
+    } else {
+      await prefs.remove('selectedStartDate');
+      await prefs.remove('selectedEndDate');
+    }
+  }
+
+  Future<void> _clearFiltersFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('selectedCourseId');
+    await prefs.remove('selectedStartDate');
+    await prefs.remove('selectedEndDate');
   }
 
   Future<void> _fetchAttendanceHistory() async {
@@ -65,10 +112,7 @@ class _LecturerAttendanceHistoryScreenState extends State<LecturerAttendanceHist
         );
       }).toList();
 
-
-      final uniqueCourses = {
-        for (var r in fetchedHistory) r.courseId: r.courseName
-      };
+      final uniqueCourses = {for (var r in fetchedHistory) r.courseId: r.courseName};
 
       final List<Map<String, String>> fetchedCourses = [
         {'id': 'all', 'name': 'All Courses'},
@@ -78,8 +122,9 @@ class _LecturerAttendanceHistoryScreenState extends State<LecturerAttendanceHist
       setState(() {
         _fullHistory = fetchedHistory;
         _coursesForFilter = fetchedCourses;
-        _applyFilters();
       });
+
+      _applyFilters();
     } catch (e) {
       print("Error fetching attendance history: $e");
       ScaffoldMessenger.of(context).showSnackBar(
@@ -88,7 +133,9 @@ class _LecturerAttendanceHistoryScreenState extends State<LecturerAttendanceHist
       setState(() {
         _fullHistory = [];
         _filteredHistory = [];
-        _coursesForFilter = [{'id': 'all', 'name': 'All Courses'}];
+        _coursesForFilter = [
+          {'id': 'all', 'name': 'All Courses'}
+        ];
       });
     } finally {
       setState(() => _isLoading = false);
@@ -99,15 +146,22 @@ class _LecturerAttendanceHistoryScreenState extends State<LecturerAttendanceHist
     List<AttendanceRecord> filtered = _fullHistory;
 
     if (_selectedCourseId != 'all') {
-      filtered = filtered.where((record) => record.courseId == _selectedCourseId).toList();
+      filtered =
+          filtered.where((record) => record.courseId == _selectedCourseId).toList();
     }
 
     if (_selectedDateRange != null) {
       filtered = filtered.where((record) {
-        return record.date.isAfter(_selectedDateRange!.start.subtract(const Duration(days: 1))) &&
-            record.date.isBefore(_selectedDateRange!.end.add(const Duration(days: 1)));
+        return record.date.isAfter(
+            _selectedDateRange!.start.subtract(const Duration(days: 1))) &&
+            record.date
+                .isBefore(_selectedDateRange!.end.add(const Duration(days: 1)));
       }).toList();
     }
+
+    // Save filters persistently
+    _saveFiltersToPrefs();
+
     setState(() {
       _filteredHistory = filtered;
     });
@@ -117,8 +171,10 @@ class _LecturerAttendanceHistoryScreenState extends State<LecturerAttendanceHist
     setState(() {
       _selectedCourseId = 'all';
       _selectedDateRange = null;
-      _applyFilters();
     });
+
+    _applyFilters();
+    _clearFiltersFromPrefs();
   }
 
   void _exportData() {
@@ -162,9 +218,7 @@ class _LecturerAttendanceHistoryScreenState extends State<LecturerAttendanceHist
         children: [
           _buildFilterSection(),
           Expanded(
-            child: _isLoading
-                ? const LoadingIndicator()
-                : _buildAttendanceList(),
+            child: _isLoading ? const LoadingIndicator() : _buildAttendanceList(),
           ),
         ],
       ),
@@ -198,9 +252,11 @@ class _LecturerAttendanceHistoryScreenState extends State<LecturerAttendanceHist
                     labelText: 'Filter by Course',
                     filled: true,
                     fillColor: Colors.white,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                   ),
-                  items: _coursesForFilter.map<DropdownMenuItem<String>>((course) {
+                  items: _coursesForFilter
+                      .map<DropdownMenuItem<String>>((course) {
                     return DropdownMenuItem<String>(
                       value: course['id'],
                       child: Text(course['name']!),

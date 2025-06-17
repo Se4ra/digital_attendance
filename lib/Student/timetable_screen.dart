@@ -29,7 +29,7 @@ class StudentTimetableScreen extends StatelessWidget {
 
     for (String jsonStr in courseJsonList) {
       Map<String, dynamic> courseData = jsonDecode(jsonStr);
-      String day = courseData['day'] ?? 'Monday';
+      String day = courseData['day'] ?? 'Friday';
       String lecturer = 'Lecturer';
 
       if (timetable.containsKey(day)) {

@@ -4,7 +4,6 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:intl/intl.dart';
 
 class QRScannerScreen extends StatefulWidget {
   @override
@@ -13,11 +12,26 @@ class QRScannerScreen extends StatefulWidget {
 
 class _QRScannerScreenState extends State<QRScannerScreen> {
   bool isScanning = true;
+  late MobileScannerController _controller;
+  bool _processing = false; // Prevent multiple scans at once
+  bool _flashOn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = MobileScannerController(
+      facing: CameraFacing.back,
+      torchEnabled: false,
+      detectionSpeed: DetectionSpeed.noDuplicates, // Helps prevent duplicates
+    );
+  }
 
   Future<void> _handleQRCode(String data) async {
-    try {
-      setState(() => isScanning = false);
+    if (_processing) return; // Avoid multiple simultaneous calls
+    _processing = true;
+    setState(() => isScanning = false);
 
+    try {
       final Map<String, dynamic> qrData = jsonDecode(data);
 
       final String courseId = qrData['courseId'];
@@ -61,7 +75,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
         return;
       }
 
-      // 🔍 Find matching session
+      // Find matching session
       final sessionQuery = await FirebaseFirestore.instance
           .collection('sessions')
           .where('courseId', isEqualTo: courseId)
@@ -78,7 +92,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
       final sessionDoc = sessionQuery.docs.first;
       final sessionId = sessionDoc.id;
 
-      // 🛑 Prevent duplicate check-in
+      // Prevent duplicate check-in
       final existingCheckin = await FirebaseFirestore.instance
           .collection('checkins')
           .where('sessionId', isEqualTo: sessionId)
@@ -91,7 +105,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
         return;
       }
 
-      // ✅ Save check-in
+      // Save check-in
       await FirebaseFirestore.instance.collection('checkins').add({
         'sessionId': sessionId,
         'courseId': courseId,
@@ -109,10 +123,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
         },
       });
 
-      await FirebaseFirestore.instance
-          .collection('sessions')
-          .doc(sessionId)
-          .update({
+      await FirebaseFirestore.instance.collection('sessions').doc(sessionId).update({
         'checkedInStudents': FieldValue.arrayUnion([user.uid])
       });
 
@@ -131,7 +142,10 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
       _showDialog('Error', 'Something went wrong during check-in.');
     } finally {
       if (mounted) {
-        setState(() => isScanning = true);
+        setState(() {
+          isScanning = true;
+          _processing = false;
+        });
       }
     }
   }
@@ -147,7 +161,10 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
             child: const Text('OK'),
             onPressed: () {
               Navigator.of(context).pop();
-              setState(() => isScanning = true);
+              setState(() {
+                isScanning = true;
+                _processing = false;
+              });
             },
           )
         ],
@@ -156,13 +173,34 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
   }
 
   @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _toggleFlash() {
+    setState(() {
+      _flashOn = !_flashOn;
+      _controller.toggleTorch();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Scan QR Code')),
+      appBar: AppBar(
+        title: const Text('Scan QR Code'),
+        actions: [
+          IconButton(
+            icon: Icon(_flashOn ? Icons.flash_on : Icons.flash_off),
+            onPressed: _toggleFlash,
+          )
+        ],
+      ),
       body: isScanning
           ? MobileScanner(
-        controller: MobileScannerController(facing: CameraFacing.back),
-        onDetect: (BarcodeCapture capture) {
+        controller: _controller,
+        onDetect: (capture) {
           final barcodes = capture.barcodes;
           if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
             _handleQRCode(barcodes.first.rawValue!);

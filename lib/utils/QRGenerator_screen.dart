@@ -34,7 +34,7 @@ class _QRGeneratorScreenState extends State<QRGeneratorScreen> {
         throw Exception("User not logged in");
       }
 
-      // Get current location
+
       currentPosition = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high);
 

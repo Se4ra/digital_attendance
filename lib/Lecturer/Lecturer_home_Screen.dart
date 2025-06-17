@@ -1,7 +1,7 @@
 import 'package:digital_attendance_system/Lecturer/attendance_history_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:digital_attendance_system/Lecturer/course_management_screen.dart';
-import 'package:digital_attendance_system/Lecturer/qr_generator_screen.dart';
+import 'package:digital_attendance_system/models/qr_generator_screen.dart';
 import 'package:digital_attendance_system/Lecturer/lecturer_profile_screen.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
